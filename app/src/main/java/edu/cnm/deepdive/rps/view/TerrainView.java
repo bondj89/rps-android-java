@@ -20,6 +20,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.View;
 import edu.cnm.deepdive.rps.model.Arena;
@@ -45,7 +46,8 @@ public class TerrainView extends View {
   private int[] breedColors;
   private Paint paint;
   private boolean measured;
-  private long generation;
+  private Rect source = new Rect();
+  private Rect dest = new Rect();
   private final Object lock = new Object();
   private Updater updater;
 
@@ -92,7 +94,7 @@ public class TerrainView extends View {
    * set to {@code wrap_content}; or within a {@link android.widget.HorizontalScrollView}, with its
    * width set to {@code wrap_content} and its height set to {@code match_parent}.
    *
-   * @param widthMeasureSpec specification control value.
+   * @param widthMeasureSpec  specification control value.
    * @param heightMeasureSpec specification control value.
    */
   @Override
@@ -101,12 +103,10 @@ public class TerrainView extends View {
     int width = getSuggestedMinimumWidth();
     int height = getSuggestedMinimumHeight();
     width = resolveSizeAndState(getPaddingLeft() + getPaddingRight() + width, widthMeasureSpec, 0);
-    height = resolveSizeAndState(getPaddingTop() + getPaddingBottom() + height, heightMeasureSpec, 0);
+    height = resolveSizeAndState(getPaddingTop() + getPaddingBottom() + height, heightMeasureSpec,
+        0);
     int size = Math.max(width, height);
     setMeasuredDimension(size, size);
-    synchronized (lock) {
-      bitmap = null;
-    }
   }
 
   /**
@@ -117,6 +117,7 @@ public class TerrainView extends View {
   protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
     super.onLayout(changed, left, top, right, bottom);
     measured = true;
+    dest.set(left, top, right, bottom);
     updateBitmap();
   }
 
@@ -128,11 +129,8 @@ public class TerrainView extends View {
   @Override
   protected void onDraw(Canvas canvas) {
     if (bitmap != null) {
-      synchronized (lock) {
-        if (bitmap != null) {
-          canvas.drawBitmap(bitmap, 0, 0, null);
-        }
-      }
+      dest.set(0, 0, getWidth(), getHeight());
+      canvas.drawBitmap(bitmap, source, dest, null);
     }
   }
 
@@ -167,6 +165,8 @@ public class TerrainView extends View {
       int numBreeds = arena.getNumBreeds();
       int size = arena.getArenaSize();
       terrain = new byte[size][size];
+      bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565);
+      source.set(0, 0, size, size);
       float[] hsv = {0, SATURATION, BRIGHTNESS};
       float hueInterval = MAX_HUE / numBreeds;
       breedColors = new int[numBreeds];
@@ -182,7 +182,8 @@ public class TerrainView extends View {
    * method, the cell terrain rendering will not be updated; however, if data binding is used in the
    * layout XML, this can happen automatically.
    *
-   * @param generation number of generations (iterations) completed in the {@link Arena} simulation.
+   * @param generation number of generations (iterations) completed in the {@link Arena}
+   *                   simulation.
    */
   public void setGeneration(long generation) {
     if (updater != null) {
@@ -192,27 +193,11 @@ public class TerrainView extends View {
 
   private void updateBitmap() {
     if (measured && terrain != null) {
-      if (bitmap == null) {
-        synchronized (lock) {
-          bitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.RGB_565);
-          canvas = new Canvas(bitmap);
-        }
-      }
       if (bitmap != null) {
-        synchronized (lock) {
-          if (bitmap != null) {
-            arena.copyTerrain(terrain);
-            float cellWidth = (float) getWidth() / terrain[0].length;
-            float cellHeight = (float) getHeight() / terrain.length;
-            for (int row = 0; row < terrain.length; row++) {
-              float cellTop = cellHeight * row;
-              float cellBottom = cellTop + cellHeight;
-              for (int col = 0; col < terrain[row].length; col++) {
-                float cellLeft = cellWidth * col;
-                paint.setColor(breedColors[terrain[row][col]]);
-                canvas.drawOval(cellLeft, cellTop, cellLeft + cellWidth, cellBottom, paint);
-              }
-            }
+        arena.copyTerrain(terrain);
+        for (int row = 0; row < terrain.length; row++) {
+          for (int col = 0; col < terrain[row].length; col++) {
+            bitmap.setPixel(col, row, breedColors[terrain[row][col]]);
           }
         }
       }
