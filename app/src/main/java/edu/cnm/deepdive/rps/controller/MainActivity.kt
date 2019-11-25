@@ -54,7 +54,7 @@ class MainActivity : AppCompatActivity() {
         binding.lifecycleOwner = this
         viewModel = ViewModelProviders.of(this).get(MainViewModel::class.java)
         binding.viewModel = viewModel
-        viewModel?.isRunning()?.observe(this, Observer { running: Boolean ->
+        viewModel?.isRunning?.observe(this, Observer { running: Boolean ->
             if (running != this.running) {
                 this.running = running
                 invalidateOptionsMenu()
@@ -98,9 +98,9 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         var handled = true
         when (item.itemId) {
-            R.id.run -> viewModel!!.start()
-            R.id.pause -> viewModel!!.stop()
-            R.id.reset -> viewModel!!.reset()
+            R.id.run -> viewModel?.start()
+            R.id.pause -> viewModel?.stop()
+            R.id.reset -> viewModel?.reset()
             else -> handled = super.onOptionsItemSelected(item)
         }
         return handled

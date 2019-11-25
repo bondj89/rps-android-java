@@ -46,6 +46,7 @@ public class Arena {
   private final int[] populations;
   private long generation;
   private byte survivingBreeds;
+  private final Object lock = new Object();
 
   private Arena(byte numBreeds, int arenaSize, Random rng) {
     this.numBreeds = numBreeds;
@@ -112,7 +113,9 @@ public class Arena {
       } else {
         return;
       }
-      terrain[loserRow][loserCol] = winner;
+      synchronized (lock) {
+        terrain[loserRow][loserCol] = winner;
+      }
       adjustPopulations(winner, loser);
       generation++;
     }
@@ -126,8 +129,10 @@ public class Arena {
    * @param dest square array of cells to receive a copy of the terrain.
    */
   public void copyTerrain(byte[][] dest) {
-    for (int row = 0; row < arenaSize; row++) {
-      System.arraycopy(terrain[row], 0, dest[row], 0, terrain[row].length);
+    synchronized (lock) {
+      for (int row = 0; row < arenaSize; row++) {
+        System.arraycopy(terrain[row], 0, dest[row], 0, terrain[row].length);
+      }
     }
   }
 

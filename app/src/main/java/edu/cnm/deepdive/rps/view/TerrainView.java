@@ -46,6 +46,8 @@ public class TerrainView extends View {
   private Paint paint;
   private boolean measured;
   private long generation;
+  private final Object lock = new Object();
+  private Updater updater;
 
   {
     setWillNotDraw(false);
@@ -102,7 +104,9 @@ public class TerrainView extends View {
     height = resolveSizeAndState(getPaddingTop() + getPaddingBottom() + height, heightMeasureSpec, 0);
     int size = Math.max(width, height);
     setMeasuredDimension(size, size);
-    bitmap = null;
+    synchronized (lock) {
+      bitmap = null;
+    }
   }
 
   /**
@@ -124,7 +128,30 @@ public class TerrainView extends View {
   @Override
   protected void onDraw(Canvas canvas) {
     if (bitmap != null) {
-      canvas.drawBitmap(bitmap, 0, 0, null);
+      synchronized (lock) {
+        if (bitmap != null) {
+          canvas.drawBitmap(bitmap, 0, 0, null);
+        }
+      }
+    }
+  }
+
+  @Override
+  protected void onAttachedToWindow() {
+    super.onAttachedToWindow();
+    if (updater != null) {
+      updater.setRunning(false);
+    }
+    updater = new Updater();
+    updater.start();
+  }
+
+  @Override
+  protected void onDetachedFromWindow() {
+    super.onDetachedFromWindow();
+    if (updater != null) {
+      updater.setRunning(false);
+      updater = null;
     }
   }
 
@@ -158,33 +185,72 @@ public class TerrainView extends View {
    * @param generation number of generations (iterations) completed in the {@link Arena} simulation.
    */
   public void setGeneration(long generation) {
-    if (generation == 0 || generation != this.generation) {
-      new Thread(() -> {
-        updateBitmap();
-        this.generation = generation;
-      }).start();
+    if (updater != null) {
+      updater.setGeneration(generation);
     }
   }
 
   private void updateBitmap() {
     if (measured && terrain != null) {
       if (bitmap == null) {
-        bitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.RGB_565);
-        canvas = new Canvas(bitmap);
+        synchronized (lock) {
+          bitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.RGB_565);
+          canvas = new Canvas(bitmap);
+        }
       }
-      arena.copyTerrain(terrain);
-      float cellWidth = (float) getWidth() / terrain[0].length;
-      float cellHeight = (float) getHeight() / terrain.length;
-      for (int row = 0; row < terrain.length; row++) {
-        float cellTop = cellHeight * row;
-        float cellBottom = cellTop + cellHeight;
-        for (int col = 0; col < terrain[row].length; col++) {
-          float cellLeft = cellWidth * col;
-          paint.setColor(breedColors[terrain[row][col]]);
-          canvas.drawOval(cellLeft, cellTop, cellLeft + cellWidth, cellBottom, paint);
+      if (bitmap != null) {
+        synchronized (lock) {
+          if (bitmap != null) {
+            arena.copyTerrain(terrain);
+            float cellWidth = (float) getWidth() / terrain[0].length;
+            float cellHeight = (float) getHeight() / terrain.length;
+            for (int row = 0; row < terrain.length; row++) {
+              float cellTop = cellHeight * row;
+              float cellBottom = cellTop + cellHeight;
+              for (int col = 0; col < terrain[row].length; col++) {
+                float cellLeft = cellWidth * col;
+                paint.setColor(breedColors[terrain[row][col]]);
+                canvas.drawOval(cellLeft, cellTop, cellLeft + cellWidth, cellBottom, paint);
+              }
+            }
+          }
         }
       }
     }
+  }
+
+  private class Updater extends Thread {
+
+    private transient boolean running = true;
+    private transient long generation = 0;
+
+    @Override
+    public void run() {
+      long generation = -1;
+      while (running) {
+        if (this.generation == 0 || this.generation > generation) {
+          generation = this.generation;
+          updateBitmap();
+          if (generation == 0) {
+            postInvalidate();
+          }
+        }
+        try {
+          sleep(1);
+        } catch (InterruptedException expected) {
+          // Ignore innocuous exception.
+        }
+      }
+    }
+
+    public void setRunning(boolean running) {
+      this.running = running;
+    }
+
+    public void setGeneration(long generation) {
+      this.generation = generation;
+    }
+
   }
 
 }
