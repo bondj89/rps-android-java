@@ -33,9 +33,9 @@ public class MainViewModel extends AndroidViewModel {
   /** Default number of breeds populating the {@link Arena} instance managed by this ViewModel. */
   public static final byte DEFAULT_NUM_BREEDS = 5;
   /** Default size of the terrain used in the {@link Arena} instance managed by this ViewModel. */
-  public static final int DEFAULT_ARENA_SIZE = 50;
+  public static final int DEFAULT_ARENA_SIZE = 60;
 
-  private static final int ITERATIONS_PER_SLEEP = DEFAULT_ARENA_SIZE * DEFAULT_ARENA_SIZE / 20;
+  private static final int ITERATIONS_PER_SLEEP = DEFAULT_ARENA_SIZE * DEFAULT_ARENA_SIZE / 10;
   private static final int SLEEP_INTERVAL = 1;
 
   private MutableLiveData<Arena> arena = new MutableLiveData<>(null);
