@@ -1,3 +1,4 @@
+
 /*
  *  Copyright 2019 Nicholas Bennett & Deep Dive Coding/CNM Ingenuity
  *
@@ -13,157 +14,144 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package edu.cnm.deepdive.rps.viewmodel;
+package edu.cnm.deepdive.rps.viewmodel
 
-import android.app.Application;
-import androidx.annotation.NonNull;
-import androidx.lifecycle.AndroidViewModel;
-import androidx.lifecycle.LiveData;
-import androidx.lifecycle.MutableLiveData;
-import edu.cnm.deepdive.rps.model.Arena;
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import edu.cnm.deepdive.rps.model.Arena
+import edu.cnm.deepdive.rps.viewmodel.MainViewModel
 
 /**
- * Manages interaction with (and simulation execution of) an instance of {@link Arena}, and exposes
+ * Manages interaction with (and simulation execution of) an instance of [Arena], and exposes
  * its key properties as LiveData.
  *
  * @author Nicholas Bennett
  */
-public class MainViewModel extends AndroidViewModel {
-
-  /** Default number of breeds populating the {@link Arena} instance managed by this ViewModel. */
-  public static final byte DEFAULT_NUM_BREEDS = 5;
-  /** Default size of the terrain used in the {@link Arena} instance managed by this ViewModel. */
-  public static final int DEFAULT_ARENA_SIZE = 50;
-
-  private static final int ITERATIONS_PER_SLEEP = DEFAULT_ARENA_SIZE * DEFAULT_ARENA_SIZE / 20;
-  private static final int SLEEP_INTERVAL = 1;
-
-  private MutableLiveData<Arena> arena = new MutableLiveData<>(null);
-  private MutableLiveData<Long> generation = new MutableLiveData<>();
-  private MutableLiveData<Boolean> running = new MutableLiveData<>();
-
-  private Runner runner;
-
-  /**
-   * Initializes ViewModel and creates an instance of {@link Arena} with default constructor
-   * paramater values.
-   *
-   * @param application
-   */
-  public MainViewModel(@NonNull Application application) {
-    super(application);
-    reset();
-  }
-
-  /**
-   * Returns LiveData containing the current {@link Arena}.
-   */
-  public LiveData<Arena> getArena() {
-    return arena;
-  }
-
-  /**
-   * Returns LiveData containing a {@code boolean} flag indicating whether the simulation model is
-   * currently running.
-   */
-  public LiveData<Boolean> isRunning() {
-    return running;
-  }
-
-  /**
-   * Returns LiveData containing the current {@code long} generation count of the {@link Arena}
-   * instance.
-   */
-  public MutableLiveData<Long> getGeneration() {
-    return generation;
-  }
-
-  /**
-   * Starts or resumes execution of the simulation of the {@link Arena} instance.
-   */
-  public void start() {
-    stopRunner();
-    running.setValue(true);
-    runner = new Runner();
-    runner.start();
-  }
-
-  /**
-   * Pauses execution of the simulation of the {@link Arena} instance.
-   */
-  public void stop() {
-    stopRunner();
-    running.setValue(false);
-  }
-
-  /**
-   * Resets the current {@link Arena} (if any). If an {@code Arena} has not yet been created,
-   * creates one with the {@link #DEFAULT_NUM_BREEDS} breeds and {@link #DEFAULT_ARENA_SIZE} height
-   * and width.
-   */
-  public void reset() {
-    Arena arena = this.arena.getValue();
-    if (arena == null) {
-      reset(DEFAULT_NUM_BREEDS, DEFAULT_ARENA_SIZE);
-    } else {
-      arena.init();
-      generation.setValue(arena.getGeneration());
-      running.setValue(false);
+class MainViewModel(application: Application) : AndroidViewModel(application) {
+    private val arena = MutableLiveData<Arena?>(null)
+    /**
+     * Returns LiveData containing the current `long` generation count of the [Arena]
+     * instance.
+     */
+    val generation = MutableLiveData<Long>()
+    private val running = MutableLiveData<Boolean>()
+    private var runner: Runner? = null
+    /**
+     * Returns LiveData containing the current [Arena].
+     */
+    fun getArena(): LiveData<Arena?> {
+        return arena
     }
-  }
 
-  /**
-   * Creates a new {@link Arena} with the specified number of breeds and size.
-   *
-   * @param numBreeds number of breeds placed initially on the terrain of the new {@link Arena}.
-   * @param arenaSize height and width of the terrain of the new {@link Arena}.
-   */
-  public void reset(byte numBreeds, int arenaSize) {
-    Arena arena = new Arena.Builder()
-        .setNumBreeds(numBreeds)
-        .setArenaSize(arenaSize)
-        .build();
-    arena.init();
-    this.arena.setValue(arena);
-    generation.setValue(arena.getGeneration());
-    running.setValue(false);
-  }
+    /**
+     * Returns LiveData containing a `boolean` flag indicating whether the simulation model is
+     * currently running.
+     */
+    val isRunning: LiveData<Boolean>
+        get() = running
 
-  private void stopRunner() {
-    if (runner != null) {
-      runner.setRunning(false);
-      runner = null;
+
+    /**
+     * Starts or resumes execution of the simulation of the [Arena] instance.
+     */
+    fun start() {
+        stopRunner()
+        running.value = true
+        runner = Runner()
+        runner!!.start()
     }
-  }
 
-  private class Runner extends Thread {
+    /**
+     * Pauses execution of the simulation of the [Arena] instance.
+     */
+    fun stop() {
+        stopRunner()
+        running.value = false
+    }
 
-    private boolean running = true;
-
-    @Override
-    public void run() {
-      while (running) {
-        Arena arena = MainViewModel.this.arena.getValue();
-        try {
-          if (arena != null) {
-            for (int i = 0; i < ITERATIONS_PER_SLEEP; i++) {
-              arena.advance();
-            }
-            running &= !arena.isAbsorbed();
-          }
-          generation.postValue(arena.getGeneration());
-          sleep(SLEEP_INTERVAL);
-        } catch (InterruptedException expected) {
-          // Ignore innocuous exception.
+    /**
+     * Resets the current [Arena] (if any). If an `Arena` has not yet been created,
+     * creates one with the [.DEFAULT_NUM_BREEDS] breeds and [.DEFAULT_ARENA_SIZE] height
+     * and width.
+     */
+    fun reset() {
+        val arena = arena.value
+        if (arena == null) {
+            reset(DEFAULT_NUM_BREEDS, DEFAULT_ARENA_SIZE)
+        } else {
+            arena.init()
+            generation.value = arena.generation
+            running.setValue(false)
         }
-      }
-      MainViewModel.this.running.postValue(false);
     }
 
-    public void setRunning(boolean running) {
-      this.running = running;
+    /**
+     * Creates a new [Arena] with the specified number of breeds and size.
+     *
+     * @param numBreeds number of breeds placed initially on the terrain of the new [Arena].
+     * @param arenaSize height and width of the terrain of the new [Arena].
+     */
+    fun reset(numBreeds: Byte, arenaSize: Int) {
+        val arena = Arena.Builder()
+                .setNumBreeds(numBreeds)
+                .setArenaSize(arenaSize)
+                .build()
+        arena.init()
+        this.arena.value = arena
+        generation.value = arena.generation
+        running.value = false
     }
 
-  }
+    private fun stopRunner() {
+        if (runner != null) {
+            runner!!.setRunning(false)
+            runner = null
+        }
+    }
 
+    private inner class Runner : Thread() {
+        private var running = true
+        override fun run() {
+            while (running) {
+                val arena = arena.value
+                try {
+                    if (arena != null) {
+                        for (i in 0 until ITERATIONS_PER_SLEEP) {
+                            arena.advance()
+                        }
+                        running = running and !arena.isAbsorbed
+                    }
+                    generation.postValue(arena!!.generation)
+                    sleep(SLEEP_INTERVAL.toLong())
+                } catch (expected: InterruptedException) { // Ignore innocuous exception.
+                }
+            }
+            this@MainViewModel.running.postValue(false)
+        }
+
+        fun setRunning(running: Boolean) {
+            this.running = running
+        }
+    }
+
+    companion object {
+        /** Default number of breeds populating the [Arena] instance managed by this ViewModel.  */
+        const val DEFAULT_NUM_BREEDS: Byte = 5
+        /** Default size of the terrain used in the [Arena] instance managed by this ViewModel.  */
+        const val DEFAULT_ARENA_SIZE = 50
+        private const val ITERATIONS_PER_SLEEP = DEFAULT_ARENA_SIZE * DEFAULT_ARENA_SIZE / 20
+        private const val SLEEP_INTERVAL = 1
+    }
+
+    /**
+     * Initializes ViewModel and creates an instance of [Arena] with default constructor
+     * paramater values.
+     *
+     * @param application
+     */
+    init {
+        reset()
+    }
 }
